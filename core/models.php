@@ -16,7 +16,6 @@ class Models {
             return false;
         }
 
-        // Check for duplicate username
         $checkUserSql = "SELECT * FROM users WHERE username = ?";
         $checkUserSqlStmt = $this->conn->prepare($checkUserSql);
         $checkUserSqlStmt->execute([$username]);
@@ -34,7 +33,6 @@ class Models {
         if ($stmt->execute([$username, $hashedPassword, $first_name, $last_name, $dob])) {
             $_SESSION['message'] = "User successfully inserted";
 
-            // Log the action
             $this->logAction($username, 'create', "New user created: $username");
             return true;
         }
@@ -50,7 +48,6 @@ class Models {
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
 
-            // Log the action
             $this->logAction($_SESSION['username'] ?? 'Unknown', 'delete', "Deleted applicant ID: $id");
 
             return [
@@ -113,7 +110,6 @@ class Models {
             $stmt = $this->conn->prepare($sql);
             $stmt->execute($data);
 
-            // Log the action
             $this->logAction($last_updated_by, 'update', json_encode($data));
 
             return [
@@ -129,7 +125,6 @@ class Models {
     }
 
     public function searchApplicants($search) {
-        // If search is empty, return a message indicating no results
         if (empty($search)) {
             return [
                 'message' => 'No search term provided.',
@@ -149,16 +144,14 @@ class Models {
     
         try {
             $stmt = $this->conn->prepare($sql);
-            $searchTerm = '%' . $search . '%';  // Add wildcards for partial matching
+            $searchTerm = '%' . $search . '%';
             $stmt->bindParam(':search', $searchTerm, PDO::PARAM_STR);
             $stmt->execute();
     
             $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-            // Log the action
             $this->logAction($_SESSION['username'] ?? 'Unknown', 'search', "Searched for: $search");
     
-            // If no results, return a message indicating so
             if (empty($results)) {
                 return [
                     'message' => 'No applicants found matching the search criteria.',
@@ -192,7 +185,6 @@ class Models {
                 'details' => $details
             ]);
         } catch (PDOException $e) {
-            // Handle logging failure silently
         }
     }
 
