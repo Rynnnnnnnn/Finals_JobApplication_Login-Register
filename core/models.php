@@ -205,5 +205,16 @@ class Models {
         }
         return false;
     }
+    public function createApplicant($data) {
+        $sql = "INSERT INTO applicants (first_name, last_name, email, phone_number, specialization, experience_years, last_added_by) 
+                VALUES (:first_name, :last_name, :email, :phone_number, :specialization, :experience_years, :last_added_by)";
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute($data);
+            return ['message' => 'Applicant created successfully.', 'statusCode' => 200];
+        } catch (PDOException $e) {
+            return ['message' => 'Failed to create applicant: ' . $e->getMessage(), 'statusCode' => 400];
+        }
+    }
 }
 ?>
