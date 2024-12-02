@@ -10,35 +10,49 @@ class Models {
         $this->conn = $db->connect();
     }
 
-    public function createApplicant($data) {
-        // Get the current user who is adding the applicant
-        $last_added_by = $_SESSION['username'] ?? 'Unknown';
-        
-        // Include last_added_by in the insert query
-        $sql = "INSERT INTO applicants (first_name, last_name, email, phone_number, specialization, experience_years, last_added_by) 
-                VALUES (:first_name, :last_name, :email, :phone_number, :specialization, :experience_years, :last_added_by)";
-        try {
-            $data['last_added_by'] = $last_added_by;  // Add the username to the data
-            $stmt = $this->conn->prepare($sql);
-            $stmt->execute($data);
-            return [
-                'message' => 'Applicant added successfully.',
-                'statusCode' => 200
-            ];
-        } catch (PDOException $e) {
-            return [
-                'message' => 'Failed to add applicant: ' . $e->getMessage(),
-                'statusCode' => 400
-            ];
+    public function insertNewUser($username, $password, $first_name, $last_name, $dob) {
+        if (empty($username) || empty($password) || empty($first_name) || empty($last_name) || empty($dob)) {
+            $_SESSION['message'] = "All fields are required.";
+            return false;
         }
+
+        // Check for duplicate username
+        $checkUserSql = "SELECT * FROM users WHERE username = ?";
+        $checkUserSqlStmt = $this->conn->prepare($checkUserSql);
+        $checkUserSqlStmt->execute([$username]);
+
+        if ($checkUserSqlStmt->rowCount() > 0) {
+            $_SESSION['message'] = "User already exists.";
+            return false;
+        }
+
+        // Insert new user
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        $sql = "INSERT INTO users (username, password, first_name, last_name, dob) VALUES (?, ?, ?, ?, ?)";
+        $stmt = $this->conn->prepare($sql);
+
+        if ($stmt->execute([$username, $hashedPassword, $first_name, $last_name, $dob])) {
+            $_SESSION['message'] = "User successfully inserted";
+
+            // Log the action
+            $this->logAction($username, 'create', "New user created: $username");
+            return true;
+        }
+
+        $_SESSION['message'] = "An error occurred during the query.";
+        return false;
     }
-    
+
     public function deleteApplicant($id) {
         $sql = "DELETE FROM applicants WHERE id = :id";
         try {
             $stmt = $this->conn->prepare($sql);
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
+
+            // Log the action
+            $this->logAction($_SESSION['username'] ?? 'Unknown', 'delete', "Deleted applicant ID: $id");
+
             return [
                 'message' => 'Applicant deleted successfully.',
                 'statusCode' => 200
@@ -50,7 +64,6 @@ class Models {
             ];
         }
     }
-    
 
     public function readApplicants() {
         $sql = "SELECT * FROM applicants ORDER BY application_date DESC";
@@ -83,10 +96,8 @@ class Models {
     }
 
     public function updateApplicant($id, $data) {
-        // Get the current user who is updating the applicant
         $last_updated_by = $_SESSION['username'] ?? 'Unknown';
 
-        // Include last_updated_by in the update query
         $sql = "UPDATE applicants 
                 SET first_name = :first_name, 
                     last_name = :last_name, 
@@ -97,10 +108,14 @@ class Models {
                     last_updated_by = :last_updated_by 
                 WHERE id = :id";
         try {
-            $data['id'] = $id; // Ensure id is added to the data
-            $data['last_updated_by'] = $last_updated_by; // Add last_updated_by to the data
+            $data['id'] = $id;
+            $data['last_updated_by'] = $last_updated_by;
             $stmt = $this->conn->prepare($sql);
             $stmt->execute($data);
+
+            // Log the action
+            $this->logAction($last_updated_by, 'update', json_encode($data));
+
             return [
                 'message' => 'Applicant updated successfully',
                 'statusCode' => 200
@@ -127,6 +142,10 @@ class Models {
             $searchTerm = '%' . $search . '%';
             $stmt->bindParam(':search', $searchTerm, PDO::PARAM_STR);
             $stmt->execute();
+
+            // Log the action
+            $this->logAction($_SESSION['username'] ?? 'Unknown', 'search', "Searched for: $search");
+
             return [
                 'message' => 'Search completed successfully',
                 'statusCode' => 200,
@@ -141,37 +160,30 @@ class Models {
         }
     }
 
-    // Insert new user function using the internal $conn
-    public function insertNewUser($username, $password, $first_name, $last_name, $dob) {
-        if (empty($username) || empty($password) || empty($first_name) || empty($last_name) || empty($dob)) {
-            $_SESSION['message'] = "All fields are required.";
-            return false;
-        }
-
-        $checkUserSql = "SELECT * FROM users WHERE username = ?";
-        $checkUserSqlStmt = $this->conn->prepare($checkUserSql);
-        $checkUserSqlStmt->execute([$username]);
-
-        if ($checkUserSqlStmt->rowCount() == 0) {
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-            $sql = "INSERT INTO users (username, password, first_name, last_name, dob) VALUES (?, ?, ?, ?, ?)";
+    public function logAction($username, $operation, $details) {
+        $sql = "INSERT INTO logs (username, operation, details) VALUES (:username, :operation, :details)";
+        try {
             $stmt = $this->conn->prepare($sql);
-            $executeQuery = $stmt->execute([$username, $hashedPassword, $first_name, $last_name, $dob]);
-
-            if ($executeQuery) {
-                $_SESSION['message'] = "User successfully inserted";
-                return true;
-            } else {
-                $_SESSION['message'] = "An error occurred during the query";
-            }
-        } else {
-            $_SESSION['message'] = "User already exists";
+            $stmt->execute([
+                'username' => $username,
+                'operation' => $operation,
+                'details' => $details
+            ]);
+        } catch (PDOException $e) {
+            // Handle logging failure silently
         }
-        return false;
     }
 
-    // Login user using internal $conn
+    public function getLogs() {
+        $sql = "SELECT * FROM logs ORDER BY performed_at DESC";
+        try {
+            $stmt = $this->conn->query($sql);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
     public function loginUser($username, $password) {
         $sql = "SELECT * FROM users WHERE username = ?";
         $stmt = $this->conn->prepare($sql);
@@ -189,10 +201,9 @@ class Models {
                 $_SESSION['message'] = "Invalid password.";
             }
         } else {
-            $_SESSION['message'] = "Username doesn't exist in the database. You may consider registration first.";
+            $_SESSION['message'] = "Username doesn't exist. Consider registration.";
         }
         return false;
     }
 }
-
 ?>
