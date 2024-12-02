@@ -1,14 +1,12 @@
 <?php
-session_start();  // Start the session
+session_start();
 
 require_once 'core/models.php';
 
-// Create an instance of the Models class
 $models = new Models();
 $message = "";
 $statusCode = 200;
 
-// Check if the applicant ID is provided in the URL
 if (!isset($_GET['id'])) {
     header("Location: index.php?message=Invalid Applicant ID&statusCode=400");
     exit;
@@ -16,25 +14,20 @@ if (!isset($_GET['id'])) {
 
 $applicantId = $_GET['id'];
 
-// Retrieve the applicant details from the database
 $applicant = $models->getApplicantById($applicantId);
 if (!$applicant) {
     header("Location: index.php?message=Applicant not found&statusCode=400");
     exit;
 }
 
-// Check if the form is submitted (POST request)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Ensure the user is logged in and username is available in the session
     if (!isset($_SESSION['username'])) {
         header("Location: login.php?message=You must be logged in to update applicants&statusCode=403");
         exit;
     }
 
-    // Get the username from session
     $username = $_SESSION['username'];
 
-    // Prepare the updated data
     $data = [
         'first_name' => $_POST['first_name'],
         'last_name' => $_POST['last_name'],
@@ -44,10 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'experience_years' => $_POST['experience_years']
     ];
 
-    // Call the updateApplicant method with the necessary arguments
     $result = $models->updateApplicant($applicantId, $data, $username);
 
-    // Redirect with the result message
     header("Location: index.php?message=" . urlencode($result['message']) . "&statusCode=" . $result['statusCode']);
     exit;
 }
