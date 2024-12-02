@@ -86,6 +86,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search'])) {
         }
         .search-container button {
             margin-left: 10px;
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #d4edda; /* Match back to home button color */
+            color: #155724;  /* Text color */
+            text-decoration: none;
+            border-radius: 5px;
+            border: none; /* Remove border */
+        }
+        .search-container button:hover {
+            background-color: #f8d7da; /* Hover effect color */
         }
     </style>
 </head>
@@ -113,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search'])) {
         </form>
     </div>
 
-   <!-- Search Form with Refresh Button -->
+    <!-- Search Form with Refresh Button -->
    <h2>Search Applicants</h2>
    <div class="search-container">
         <form method="GET">
@@ -171,7 +181,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search'])) {
                     </td>
                 </tr>
             <?php endforeach; } ?>
-    </tbody>
-</table>
+            <a href="logs.php">View Logs</a>
+            <a href="logout.php">Logout</a>
+        </tbody>
+    </table>
 </body>
 </html>
