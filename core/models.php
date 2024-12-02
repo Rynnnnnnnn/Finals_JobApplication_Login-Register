@@ -1,7 +1,7 @@
 <?php
 
 require_once 'dbConfig.php';
-
+session_start();
 class Models {
     private $conn;
 
@@ -129,6 +129,15 @@ class Models {
     }
 
     public function searchApplicants($search) {
+        // If search is empty, return a message indicating no results
+        if (empty($search)) {
+            return [
+                'message' => 'No search term provided.',
+                'statusCode' => 400,
+                'querySet' => []
+            ];
+        }
+    
         $sql = "SELECT * FROM applicants WHERE 
                 first_name LIKE :search OR 
                 last_name LIKE :search OR 
@@ -137,19 +146,31 @@ class Models {
                 specialization LIKE :search OR 
                 experience_years LIKE :search 
                 ORDER BY application_date DESC";
+    
         try {
             $stmt = $this->conn->prepare($sql);
-            $searchTerm = '%' . $search . '%';
+            $searchTerm = '%' . $search . '%';  // Add wildcards for partial matching
             $stmt->bindParam(':search', $searchTerm, PDO::PARAM_STR);
             $stmt->execute();
-
+    
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
             // Log the action
             $this->logAction($_SESSION['username'] ?? 'Unknown', 'search', "Searched for: $search");
-
+    
+            // If no results, return a message indicating so
+            if (empty($results)) {
+                return [
+                    'message' => 'No applicants found matching the search criteria.',
+                    'statusCode' => 404,
+                    'querySet' => []
+                ];
+            }
+    
             return [
                 'message' => 'Search completed successfully',
                 'statusCode' => 200,
-                'querySet' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+                'querySet' => $results
             ];
         } catch (PDOException $e) {
             return [
@@ -159,6 +180,7 @@ class Models {
             ];
         }
     }
+    
 
     public function logAction($username, $operation, $details) {
         $sql = "INSERT INTO logs (username, operation, details) VALUES (:username, :operation, :details)";
