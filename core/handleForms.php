@@ -20,11 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'last_added_by' => $_SESSION['username']
         ];  
 
-        $result = $models->createApplicant($data);
+        // Ensure the `createApplicant` method exists in `Models` class
+        if (method_exists($models, 'createApplicant')) {
+            $result = $models->createApplicant($data);
 
-        // Redirect with message and status code
-        header("Location: ../index.php?message=" . urlencode($result['message']) . "&statusCode=" . $result['statusCode']);
-        exit;
+            // Redirect with message and status code
+            header("Location: ../index.php?message=" . urlencode($result['message']) . "&statusCode=" . $result['statusCode']);
+            exit;
+        } else {
+            die('Error: createApplicant method is not defined in Models class.');
+        }
     }
 
     // Handle applicant deletion
@@ -48,8 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'specialization' => $_POST['specialization'],
             'experience_years' => $_POST['experience_years']
         ];
-        $result = $models->updateApplicant($id, $data);
-        echo $result['message']; // You may want to redirect or display the message
+
+        // Ensure the `updateApplicant` method exists
+        if (method_exists($models, 'updateApplicant')) {
+            $result = $models->updateApplicant($id, $data);
+            echo $result['message'];
+        } else {
+            die('Error: updateApplicant method is not defined in Models class.');
+        }
     }
 }
 
