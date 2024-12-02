@@ -9,7 +9,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Handle applicant creation
     if (isset($_POST['create'])) {
-        // Collect form data
         $data = [
             'first_name' => $_POST['first_name'],
             'last_name' => $_POST['last_name'],
@@ -20,11 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'last_added_by' => $_SESSION['username']
         ];  
 
-        // Ensure the `createApplicant` method exists in `Models` class
         if (method_exists($models, 'createApplicant')) {
             $result = $models->createApplicant($data);
 
-            // Redirect with message and status code
             header("Location: ../index.php?message=" . urlencode($result['message']) . "&statusCode=" . $result['statusCode']);
             exit;
         } else {
@@ -37,7 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = $_POST['id'];
         $result = $models->deleteApplicant($id);
 
-        // Redirect with message and status code
         header("Location: ../index.php?message=" . urlencode($result['message']) . "&statusCode=" . $result['statusCode']);
         exit;
     }
@@ -54,7 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'experience_years' => $_POST['experience_years']
         ];
 
-        // Ensure the `updateApplicant` method exists
         if (method_exists($models, 'updateApplicant')) {
             $result = $models->updateApplicant($id, $data);
             echo $result['message'];
@@ -73,16 +68,15 @@ if (isset($_POST['registerUserBtn'])) {
     $password = $_POST['password'];
 
     if (!empty($username) && !empty($password) && !empty($first_name) && !empty($last_name) && !empty($dob)) {
-        // Insert new user into database
         $insertQuery = $models->insertNewUser($username, $password, $first_name, $last_name, $dob);
         if ($insertQuery) {
-            header("Location: ../login.php"); // Redirect to login page
+            header("Location: ../login.php");
         } else {
-            header("Location: ../register.php"); // Redirect back to register page if failed
+            header("Location: ../register.php");
         }
     } else {
         $_SESSION['message'] = "Please make sure the input fields are not empty for registration!";
-        header("Location: ../register.php"); // Redirect to registration page
+        header("Location: ../register.php");
     }
 }
 
@@ -101,17 +95,16 @@ if (isset($_POST['loginUserBtn'])) {
     $password = $_POST['password'];
 
     if (!empty($username) && !empty($password)) {
-        // Attempt login
         $loginQuery = $models->loginUser($username, $password);
         if ($loginQuery) {
             $_SESSION['username'] = $username;
-            header("Location: ../index.php"); // Redirect to home page
+            header("Location: ../index.php");
         } else {
-            header("Location: ../login.php"); // Redirect back to login page if failed
+            header("Location: ../login.php");
         }
     } else {
         $_SESSION['message'] = "Please make sure the input fields are not empty for login!";
-        header("Location: ../login.php"); // Redirect to login page
+        header("Location: ../login.php");
     }
 }
 ?>
