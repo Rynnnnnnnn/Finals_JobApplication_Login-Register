@@ -1,6 +1,4 @@
 <?php
-session_start();
-
 require_once 'core/models.php';
 
 $models = new Models();
