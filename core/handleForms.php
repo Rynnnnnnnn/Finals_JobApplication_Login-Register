@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'dbConfig.php';
 require_once 'models.php';
 
