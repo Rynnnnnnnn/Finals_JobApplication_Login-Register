@@ -1,7 +1,7 @@
 <?php
-
-require_once 'dbConfig.php';
 session_start();
+require_once 'dbConfig.php';
+
 class Models {
     private $conn;
 
@@ -10,170 +10,62 @@ class Models {
         $this->conn = $db->connect();
     }
 
-    public function insertNewUser($username, $password, $first_name, $last_name, $dob) {
-        if (empty($username) || empty($password) || empty($first_name) || empty($last_name) || empty($dob)) {
+    public function insertNewUser($username, $password, $first_name, $last_name, $dob, $role) {
+        if (empty($username) || empty($password) || empty($first_name) || empty($last_name) || empty($dob) || empty($role)) {
             $_SESSION['message'] = "All fields are required.";
             return false;
         }
-
+    
+        // Check for duplicate username
         $checkUserSql = "SELECT * FROM users WHERE username = ?";
         $checkUserSqlStmt = $this->conn->prepare($checkUserSql);
         $checkUserSqlStmt->execute([$username]);
-
+    
         if ($checkUserSqlStmt->rowCount() > 0) {
             $_SESSION['message'] = "User already exists.";
             return false;
         }
-
-        // Insert new user
+    
+        // Insert new user with role
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (username, password, first_name, last_name, dob) VALUES (?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO users (username, password, first_name, last_name, dob, role) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);
-
-        if ($stmt->execute([$username, $hashedPassword, $first_name, $last_name, $dob])) {
+    
+        if ($stmt->execute([$username, $hashedPassword, $first_name, $last_name, $dob, $role])) {
             $_SESSION['message'] = "User successfully inserted";
-
+    
+            // Log the action
             $this->logAction($username, 'create', "New user created: $username");
             return true;
         }
-
+    
         $_SESSION['message'] = "An error occurred during the query.";
         return false;
     }
-
-    public function deleteApplicant($id) {
-        $sql = "DELETE FROM applicants WHERE id = :id";
-        try {
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-
-            $this->logAction($_SESSION['username'] ?? 'Unknown', 'delete', "Deleted applicant ID: $id");
-
-            return [
-                'message' => 'Applicant deleted successfully.',
-                'statusCode' => 200
-            ];
-        } catch (PDOException $e) {
-            return [
-                'message' => 'Failed to delete applicant: ' . $e->getMessage(),
-                'statusCode' => 400
-            ];
-        }
-    }
-
-    public function readApplicants() {
-        $sql = "SELECT * FROM applicants ORDER BY application_date DESC";
-        try {
-            $stmt = $this->conn->query($sql);
-            return [
-                'message' => 'Applicants retrieved successfully',
-                'statusCode' => 200,
-                'querySet' => $stmt->fetchAll(PDO::FETCH_ASSOC)
-            ];
-        } catch (PDOException $e) {
-            return [
-                'message' => 'Failed to retrieve applicants: ' . $e->getMessage(),
-                'statusCode' => 400,
-                'querySet' => []
-            ];
-        }
-    }
-
-    public function getApplicantById($id) {
-        $sql = "SELECT * FROM applicants WHERE id = :id";
-        try {
-            $stmt = $this->conn->prepare($sql);
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt->fetch(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            return false;
-        }
-    }
-
-    public function updateApplicant($id, $data) {
-        $last_updated_by = $_SESSION['username'] ?? 'Unknown';
-
-        $sql = "UPDATE applicants 
-                SET first_name = :first_name, 
-                    last_name = :last_name, 
-                    email = :email, 
-                    phone_number = :phone_number, 
-                    specialization = :specialization, 
-                    experience_years = :experience_years, 
-                    last_updated_by = :last_updated_by 
-                WHERE id = :id";
-        try {
-            $data['id'] = $id;
-            $data['last_updated_by'] = $last_updated_by;
-            $stmt = $this->conn->prepare($sql);
-            $stmt->execute($data);
-
-            $this->logAction($last_updated_by, 'update', json_encode($data));
-
-            return [
-                'message' => 'Applicant updated successfully',
-                'statusCode' => 200
-            ];
-        } catch (PDOException $e) {
-            return [
-                'message' => 'Failed to update applicant: ' . $e->getMessage(),
-                'statusCode' => 400
-            ];
-        }
-    }
-
-    public function searchApplicants($search) {
-        if (empty($search)) {
-            return [
-                'message' => 'No search term provided.',
-                'statusCode' => 400,
-                'querySet' => []
-            ];
-        }
     
-        $sql = "SELECT * FROM applicants WHERE 
-                first_name LIKE :search OR 
-                last_name LIKE :search OR 
-                email LIKE :search OR 
-                phone_number LIKE :search OR 
-                specialization LIKE :search OR 
-                experience_years LIKE :search 
-                ORDER BY application_date DESC";
+    public function getJobListings() {
+        // Database credentials (change as per your environment)
+        $host = 'localhost';
+        $dbname = 'job_system';
+        $username = 'your_db_username';
+        $password = 'your_db_password';
     
         try {
-            $stmt = $this->conn->prepare($sql);
-            $searchTerm = '%' . $search . '%';
-            $stmt->bindParam(':search', $searchTerm, PDO::PARAM_STR);
-            $stmt->execute();
+            // Create a PDO instance
+            $db = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);  // Enable exceptions for errors
     
-            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Prepare and execute the query
+            $query = "SELECT * FROM job_listings";
+            $stmt = $db->query($query);
     
-            $this->logAction($_SESSION['username'] ?? 'Unknown', 'search', "Searched for: $search");
-    
-            if (empty($results)) {
-                return [
-                    'message' => 'No applicants found matching the search criteria.',
-                    'statusCode' => 404,
-                    'querySet' => []
-                ];
-            }
-    
-            return [
-                'message' => 'Search completed successfully',
-                'statusCode' => 200,
-                'querySet' => $results
-            ];
+            // Fetch all job listings as an associative array
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            return [
-                'message' => 'Failed to search applicants: ' . $e->getMessage(),
-                'statusCode' => 400,
-                'querySet' => []
-            ];
+            // In case of error, you can log it or display an error message
+            die("Database error: " . $e->getMessage());
         }
     }
-    
 
     public function logAction($username, $operation, $details) {
         $sql = "INSERT INTO logs (username, operation, details) VALUES (:username, :operation, :details)";
@@ -185,6 +77,7 @@ class Models {
                 'details' => $details
             ]);
         } catch (PDOException $e) {
+            // Handle logging failure silently
         }
     }
 
@@ -219,6 +112,7 @@ class Models {
         }
         return false;
     }
+
     public function createApplicant($data) {
         $sql = "INSERT INTO applicants (first_name, last_name, email, phone_number, specialization, experience_years, last_added_by) 
                 VALUES (:first_name, :last_name, :email, :phone_number, :specialization, :experience_years, :last_added_by)";
@@ -228,6 +122,17 @@ class Models {
             return ['message' => 'Applicant created successfully.', 'statusCode' => 200];
         } catch (PDOException $e) {
             return ['message' => 'Failed to create applicant: ' . $e->getMessage(), 'statusCode' => 400];
+        }
+    }
+
+    public function getUserDetails($username) {
+        $sql = "SELECT * FROM users WHERE username = ?";
+        try {
+            $stmt = $this->conn->prepare($sql);
+            $stmt->execute([$username]);
+            return $stmt->fetch(PDO::FETCH_ASSOC); // Fetch user details as an associative array
+        } catch (PDOException $e) {
+            return false; // Return false if there's an error
         }
     }
 }
